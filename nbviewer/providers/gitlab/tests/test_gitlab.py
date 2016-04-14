@@ -12,10 +12,10 @@ from unittest import SkipTest
 
 from ....tests.base import NBViewerTestCase, FormatHTMLMixin
 
-class GitHubTestCase(NBViewerTestCase):
+class GitLabTestCase(NBViewerTestCase):
     def ipython_example(self, *parts, **kwargs):
         ref = kwargs.get('ref', 'rel-2.0.0')
-        return self.url('github/ipython/ipython/blob/%s/examples' % ref, *parts)
+        return self.url('gitlab/ipython/ipython/blob/%s/examples' % ref, *parts)
 
     def test_github(self):
         url = self.ipython_example('Index.ipynb')

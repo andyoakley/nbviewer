@@ -84,7 +84,7 @@ class AsyncGitLabClient(object):
         return self.fetch(url, callback, **kwargs)
 
 
-## TODO
+## TODO - is this even needed?
     def get_contents(self, user, repo, path, callback=None, ref=None, **kwargs):
         """Make contents API request - either file contents or directory listing"""
         path = u'repos/{user}/{repo}/contents/{path}'.format(**locals())
@@ -93,15 +93,19 @@ class AsyncGitLabClient(object):
             params['ref'] = ref
         return self.gitlab_api_request(path, callback, **kwargs)
 
-    def get_tree(self, user, repo, ref=None, callback=None, **kwargs):
+    def get_tree(self, user, repo, path, ref=None, callback=None, **kwargs):
         """Get a git tree"""
-        path = u"projects/{user}/{repo}/repository/tree".format(**locals())
+        api = u"projects/{user}%2F{repo}/repository/tree".format(**locals())
         params = kwargs.setdefault('params', {})
         if path:
             params['path'] = path
         if ref:
             params['ref_name'] = ref
-        return self.gitlab_api_request("", callback, **kwargs)
+        #return self.gitlab_api_request(path, callback, **kwargs)
+         # this is to work around lack of support for namespace/repo in gitlab (see https://github.com/gitlabhq/gitlabhq/issues/8290)
+        url = url_path_join(self.gitlab_api_url, api)
+        return self.fetch(url, callback, **kwargs)
+
     
     def _extract_tree_entry(self, path, tree_response):
         """extract a single tree entry from a file list

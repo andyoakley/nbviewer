@@ -28,6 +28,7 @@ from ...utils import (
     quote,
     response_text,
 )
+from ...utils import url_path_join
 
 import os
 try: # py3
@@ -81,6 +82,7 @@ class GitLabUserHandler(GitLabClientMixin, BaseHandler):
                 url=repo['path'],
                 name=repo['path'],
             ))
+        # TODO fix this link
         provider_url = u"https://github.com/{user}".format(user=user)
         html = self.render_template("userview.html",
             entries=entries, provider_url=provider_url, 
@@ -106,17 +108,17 @@ class GitLabTreeHandler(GitLabClientMixin, BaseHandler):
             return
         path = path.rstrip('/')
         with self.catch_client_error():
-            response = yield self.gitlab_client.get_contents(user, repo, path, ref=ref)
+            response = yield self.gitlab_client.get_tree(user, repo, path, ref=ref)
 
         contents = json.loads(response_text(response))
 
-        branches, tags = yield self.refs(user, repo)
+        # branches, tags = yield self.refs(user, repo)
 
-        for nav_ref in branches + tags:
-            nav_ref["url"] = (u"/github/{user}/{repo}/tree/{ref}/{path}"
-                .format(
-                    ref=nav_ref["name"], user=user, repo=repo, path=path
-                ))
+        # for nav_ref in branches + tags:
+        #     nav_ref["url"] = (u"/github/{user}/{repo}/tree/{ref}/{path}"
+        #         .format(
+        #             ref=nav_ref["name"], user=user, repo=repo, path=path
+        #         ))
 
         if not isinstance(contents, list):
             app_log.info(
@@ -124,15 +126,16 @@ class GitLabTreeHandler(GitLabClientMixin, BaseHandler):
                 extra=dict(format=self.format_prefix, user=user, repo=repo, ref=ref, path=path)
             )
             self.redirect(
-                u"{format}/github/{user}/{repo}/blob/{ref}/{path}".format(
+                u"{format}/gitlab/{user}/{repo}/blob/{ref}/{path}".format(
                     format=self.format_prefix, user=user, repo=repo, ref=ref, path=path,
                 )
             )
             return
 
-        base_url = u"/github/{user}/{repo}/tree/{ref}".format(
+        base_url = u"/gitlab/{user}/{repo}/tree/{ref}".format(
             user=user, repo=repo, ref=ref,
         )
+        #TODO fix this link
         provider_url = u"https://github.com/{user}/{repo}/tree/{ref}/{path}".format(
             user=user, repo=repo, ref=ref, path=path,
         )
@@ -150,28 +153,26 @@ class GitLabTreeHandler(GitLabClientMixin, BaseHandler):
         for file in contents:
             e = {}
             e['name'] = file['name']
-            if file['type'] == 'dir':
-                e['url'] = u'/github/{user}/{repo}/tree/{ref}/{path}'.format(
-                user=user, repo=repo, ref=ref, path=file['path']
+            if file['type'] == 'tree':
+                e['url'] = u'/gitlab/{user}/{repo}/tree/{ref}/{path}'.format(
+                user=user, repo=repo, ref=ref, path=url_path_join(path, file['name'])
                 )
                 e['url'] = quote(e['url'])
                 e['class'] = 'fa-folder-open'
                 dirs.append(e)
             elif file['name'].endswith('.ipynb'):
-                e['url'] = u'/github/{user}/{repo}/blob/{ref}/{path}'.format(
-                user=user, repo=repo, ref=ref, path=file['path']
+                e['url'] = u'/gitlab/{user}/{repo}/blob/{ref}/{path}'.format(
+                user=user, repo=repo, ref=ref, path=url_path_join(path, file['name'])
                 )
                 e['url'] = quote(e['url'])
                 e['class'] = 'fa-book'
                 ipynbs.append(e)
-            elif file['html_url']:
-                e['url'] = file['html_url']
-                e['class'] = 'fa-share'
-                others.append(e)
             else:
-                # submodules don't have html_url
-                e['url'] = ''
-                e['class'] = 'fa-folder-close'
+                e['url'] = u'/gitlab/{user}/{repo}/blob/{ref}/{path}'.format(
+                user=user, repo=repo, ref=ref, path=url_path_join(path, file['name'])
+                )
+                e['url'] = quote(e['url'])
+                e['class'] = 'fa-share'
                 others.append(e)
 
 
@@ -182,24 +183,27 @@ class GitLabTreeHandler(GitLabClientMixin, BaseHandler):
         html = self.render_template("treelist.html",
             entries=entries, breadcrumbs=breadcrumbs, provider_url=provider_url,
             user=user, repo=repo, ref=ref, path=path,
-            branches=branches, tags=tags, tree_type="github",
-            tree_label="repositories",
+            tree_type = "gitlab",
+            tree_label="projects",
             **PROVIDER_CTX
         )
+
+        
+            #branches=branches, tags=tags, tree_type="github",
         yield self.cache_and_finish(html)
 
-    @gen.coroutine
-    def refs(self, user, repo):
-        """get branches and tags for this user/repo"""
-        ref_types = ("branches", "tags")
-        ref_data = [None, None]
+    # @gen.coroutine
+    # def refs(self, user, repo):
+    #     """get branches and tags for this user/repo"""
+    #     ref_types = ("branches", "tags")
+    #     ref_data = [None, None]
 
-        for i, ref_type in enumerate(ref_types):
-            with self.catch_client_error():
-                response = yield getattr(self.gitlab_client, "get_%s" % ref_type)(user, repo)
-            ref_data[i] = json.loads(response_text(response))
+    #     for i, ref_type in enumerate(ref_types):
+    #         with self.catch_client_error():
+    #             response = yield getattr(self.gitlab_client, "get_%s" % ref_type)(user, repo)
+    #         ref_data[i] = json.loads(response_text(response))
 
-        raise gen.Return(ref_data)
+    #     raise gen.Return(ref_data)
 
 
 class GitLabBlobHandler(GitLabClientMixin, RenderingHandler):

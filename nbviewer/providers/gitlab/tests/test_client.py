@@ -5,7 +5,7 @@ import mock
 from tornado.httpclient import AsyncHTTPClient
 from tornado.testing import AsyncTestCase
 
-from ..client import AsyncGitHubClient
+from ..client import AsyncGitLabClient
 from ....utils import quote
 
 
